@@ -25,7 +25,10 @@ class FakeBot implements RuntimeBot {
 }
 
 class FakeTransport implements TelegramTransport {
+  readonly calls: Array<{ chatId: number; text: string }> = [];
+
   async sendMessage(input: { chatId: number; threadId: number | null; text: string; buttons: RenderedMessage['buttons'] }): Promise<SentMessage> {
+    this.calls.push({ chatId: input.chatId, text: input.text });
     return { messageId: 1, chatId: input.chatId, threadId: input.threadId };
   }
 }
@@ -63,5 +66,35 @@ describe('standalone interaction application composition', () => {
     expect(bot.started).toBe(false);
     await expect(stat(config.socketPath)).rejects.toMatchObject({ code: 'ENOENT' });
     await expect(stat(join(root, 'interactions.db'))).resolves.toBeTruthy();
+  });
+
+  it('delivers a queued submission through the injected transport', async () => {
+    const { config } = await fixture();
+    const bot = new FakeBot();
+    const transport = new FakeTransport();
+    const application = createInteractionApplication(config, { bot, transport });
+
+    await application.runtime.start();
+    const interaction = application.store.submit('jobsearch', 'job-search', {
+      idempotencyKey: 'application-delivery-test',
+      type: 'notification',
+      schema: {
+        schemaVersion: 1,
+        revision: 1,
+        title: 'Delivery test',
+        body: 'Fixture body',
+        effect: 'Record delivery',
+        acknowledgeLabel: 'Acknowledge',
+      },
+      destination: { chatId: -100_123, threadId: 42 },
+      allowedUserId: 777,
+    });
+
+    await application.runtime.deliverPending();
+
+    expect(transport.calls).toHaveLength(1);
+    expect(transport.calls[0]).toMatchObject({ chatId: -100_123 });
+    expect(application.store.getInteraction(interaction.interactionId).state).toBe('delivered');
+    await application.shutdown();
   });
 });

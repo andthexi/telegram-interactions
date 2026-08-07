@@ -34,7 +34,5 @@ export function createInteractionApplication(
     socketPath: config.socketPath,
     deliveryIntervalMs: config.deliveryIntervalMs,
   });
-  // Replace the structural placeholder immediately; keeping transport construction injected avoids live Bot coupling in tests.
-  (runtime as unknown as { options: { delivery: TelegramTransport } }).options.delivery = undefined as never;
   return { store, runtime, shutdown: async () => { await runtime.stop(); store.close(); } };
 }
