@@ -1,0 +1,22 @@
+[Unit]
+Description=Shared Hermes Telegram Interaction Service
+After=default.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/hermes/telegram-interactions
+EnvironmentFile=/home/hermes/telegram-interactions/.env
+Environment=TELEGRAM_INTERACTIONS_CONFIG=/home/hermes/telegram-interactions/config.json
+ExecStart=/home/hermes/.hermes/node/bin/node node_modules/tsx/dist/cli.mjs src/main.ts
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGTERM
+UMask=0077
+RuntimeDirectory=hermes-telegram-interactions
+RuntimeDirectoryMode=0700
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target
