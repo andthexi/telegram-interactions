@@ -79,5 +79,12 @@ bound for keeping Telegram wizards bounded, reviewable, and predictable; it is n
 limit. A decision containing more than 8 fields must be split into multiple related immutable
 packets, each with its own packet identity, interaction, and result lifecycle.
 
+## Resending unanswered interactions
+
+Send `/pending` (or `/pending@botname`) in the destination chat/topic to resend every unanswered
+interaction bound to that chat/topic and the invoking allowed user. The command reuses each
+existing interaction ID and idempotency record; it does not create new interactions. Answered
+interactions are never resent, and other users' or destinations' interactions are not exposed.
+
 See [OPERATIONS.md](OPERATIONS.md) for the protocol and recovery contract, and
 [migration/README.md](migration/README.md) for the inventory safety boundary.

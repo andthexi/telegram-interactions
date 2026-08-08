@@ -64,7 +64,7 @@ export class InteractionRuntime {
   async start(): Promise<void> {
     if (this.started) throw new Error('runtime is already started');
     this.options.bot.on('callback_query:data', (context) => this.handleCallback(context));
-    this.options.bot.on('message:text', (context) => Promise.resolve(this.handleReply(context)));
+    this.options.bot.on('message:text', (context) => this.handleMessage(context));
     await this.socket.start();
     this.started = true;
     await this.deliverPending();
@@ -136,9 +136,25 @@ export class InteractionRuntime {
     }
   }
 
-  private handleReply(context: RuntimeContext): void {
+  private async handleMessage(context: RuntimeContext): Promise<void> {
     const message = context.message;
-    if (message?.reply_to_message === undefined || message.from === undefined || message.text === undefined) return;
+    if (message?.from === undefined || message.text === undefined) return;
+    if (/^\/pending(?:@[^\s]+)?$/u.test(message.text.trim())) {
+      const interactions = this.options.store.requeueUnansweredForContext(
+        message.chat.id,
+        message.message_thread_id ?? null,
+        message.from.id,
+      );
+      for (const interaction of interactions) {
+        try {
+          await this.options.delivery.deliver(interaction.interactionId);
+        } catch {
+          // Delivery failure is persisted and retried by the normal reconciliation loop.
+        }
+      }
+      return;
+    }
+    if (message.reply_to_message === undefined) return;
     try {
       this.options.lifecycle.handleReply({
         userId: message.from.id,

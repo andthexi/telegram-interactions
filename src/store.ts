@@ -375,6 +375,30 @@ export class InteractionStore {
     return rows.map((row) => this.mapInteraction(row));
   }
 
+  requeueUnansweredForContext(chatId: number, threadId: number | null, userId: number): InteractionRecord[] {
+    const rows = this.database
+      .prepare(`${interactionSelect} WHERE i.state <> 'answered' ORDER BY i.updated_at, i.id`)
+      .all() as InteractionRow[];
+    const interactions = rows.map((row) => this.mapInteraction(row)).filter(
+      (interaction) =>
+        interaction.allowedUserId === userId &&
+        interaction.destination.chatId === chatId &&
+        (interaction.destination.threadId ?? null) === threadId,
+    );
+    if (interactions.length === 0) return [];
+    const now = this.now();
+    const execute = this.database.transaction(() => {
+      for (const interaction of interactions) {
+        this.deactivateBindings(interaction.interactionId, now);
+        this.database
+          .prepare("UPDATE interactions SET state = 'queued', message_id = NULL, chat_id = NULL, thread_id = NULL, updated_at = ? WHERE id = ? AND state <> 'answered'")
+          .run(now, interaction.interactionId);
+      }
+    });
+    execute.immediate();
+    return this.listPendingDelivery().filter((interaction) => interactions.some((candidate) => candidate.interactionId === interaction.interactionId));
+  }
+
   recordDeliveryAttempt(
     interactionId: string,
     status: 'failed' | 'uncertain',
