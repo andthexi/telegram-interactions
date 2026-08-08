@@ -14,6 +14,9 @@ const MAX_BODY = 3_000;
 const MAX_EFFECT = 500;
 const MAX_LABEL = 80;
 const MAX_OPTIONS = 10;
+// Keep multi-field Telegram wizards bounded and reviewable. This is an
+// application safety bound, not a Telegram platform limit. Callers with more
+// than eight decisions must split them into multiple related packets.
 const MAX_FIELDS = 8;
 const MAX_TEXT_LENGTH = 2_000;
 const MAX_PATTERN_LENGTH = 256;

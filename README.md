@@ -72,5 +72,12 @@ intentionally outside this prototype.
 7. Workflows poll only their namespace/workflow and acknowledge by interaction ID plus revision.
 8. Cleanup removes only answered, workflow-acknowledged interactions at least seven days old.
 
+## Multi-field packet bound
+
+`multi_enum_object` packets support at most **8 fields**. This is an application-level safety
+bound for keeping Telegram wizards bounded, reviewable, and predictable; it is not a Telegram API
+limit. A decision containing more than 8 fields must be split into multiple related immutable
+packets, each with its own packet identity, interaction, and result lifecycle.
+
 See [OPERATIONS.md](OPERATIONS.md) for the protocol and recovery contract, and
 [migration/README.md](migration/README.md) for the inventory safety boundary.

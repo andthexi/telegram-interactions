@@ -49,6 +49,8 @@ export class InteractionService {
           return this.pollResults(message);
         case 'ack-result':
           return this.ackResult(message);
+        case 'lookup':
+          return this.lookup(message);
         case 'heartbeat': {
           const event = this.store.recordHealthEvent('heartbeat', { status: 'ok' });
           return { ok: true, eventId: event.eventId, status: 'ok' };
@@ -115,6 +117,22 @@ export class InteractionService {
     }
     this.store.ackResult(namespace, workflow, interactionId, revision);
     return { ok: true, interactionId, acknowledged: true };
+  }
+
+  private lookup(message: Record<string, unknown>): ServiceResponse {
+    const namespace = this.scope(message, 'namespace');
+    const workflow = this.scope(message, 'workflow');
+    rejectUnknown(message, new Set(['op', 'namespace', 'workflow', 'idempotencyKey']), 'lookup');
+    const idempotencyKey = message.idempotencyKey;
+    if (typeof idempotencyKey !== 'string' || idempotencyKey.length < 1 || idempotencyKey.length > 128) {
+      throw new RequestError('invalid_request', 'idempotencyKey must be a string of 1 to 128 characters');
+    }
+    const record = this.store.findByIdempotency(namespace, workflow, idempotencyKey);
+    return {
+      ok: true,
+      found: record !== null,
+      ...(record === null ? {} : { interactionId: record.interactionId, state: record.state, revision: record.revision }),
+    };
   }
 
   private scope(message: Record<string, unknown>, key: 'namespace' | 'workflow'): string {

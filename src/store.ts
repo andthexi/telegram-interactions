@@ -345,6 +345,13 @@ export class InteractionStore {
     return this.requireInteraction(interactionId);
   }
 
+  findByIdempotency(namespace: string, workflow: string, idempotencyKey: string): InteractionRecord | null {
+    const row = this.database
+      .prepare(`${interactionSelect} WHERE n.namespace = ? AND n.workflow = ? AND i.idempotency_key = ?`)
+      .get(namespace, workflow, idempotencyKey) as InteractionRow | undefined;
+    return row === undefined ? null : this.mapInteraction(row);
+  }
+
   listInteractions(
     namespace: string,
     workflow: string,

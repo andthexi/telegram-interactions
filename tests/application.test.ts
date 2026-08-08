@@ -95,6 +95,10 @@ describe('standalone interaction application composition', () => {
     expect(transport.calls).toHaveLength(1);
     expect(transport.calls[0]).toMatchObject({ chatId: -100_123 });
     expect(application.store.getInteraction(interaction.interactionId).state).toBe('delivered');
+    expect(application.store.findByIdempotency('jobsearch', 'job-search', 'application-delivery-test')).toMatchObject({
+      interactionId: interaction.interactionId,
+      state: 'delivered',
+    });
     await application.shutdown();
   });
 });
