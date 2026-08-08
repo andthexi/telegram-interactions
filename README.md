@@ -85,6 +85,8 @@ Send `/pending` (or `/pending@botname`) in the destination chat/topic to resend 
 interaction bound to that chat/topic and the invoking allowed user. The command reuses each
 existing interaction ID and idempotency record; it does not create new interactions. Answered
 interactions are never resent, and other users' or destinations' interactions are not exposed.
+The command always sends an acknowledgement; when the scoped set is empty, the acknowledgement is
+`No unanswered interactions.`.
 
 See [OPERATIONS.md](OPERATIONS.md) for the protocol and recovery contract, and
 [migration/README.md](migration/README.md) for the inventory safety boundary.

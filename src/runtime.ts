@@ -11,6 +11,7 @@ type CallbackApi = {
   answerCallbackQuery: (id: string, options?: { text?: string }) => Promise<unknown>;
   editMessageText: (chatId: number, messageId: number, text: string, options?: Record<string, unknown>) => Promise<unknown>;
   editMessageReplyMarkup: (chatId: number, messageId: number, options?: Record<string, unknown>) => Promise<unknown>;
+  sendMessage: (chatId: number, text: string, options?: Record<string, unknown>) => Promise<unknown>;
 };
 
 export interface RuntimeContext {
@@ -152,6 +153,11 @@ export class InteractionRuntime {
           // Delivery failure is persisted and retried by the normal reconciliation loop.
         }
       }
+      await this.options.bot.api.sendMessage(
+        message.chat.id,
+        interactions.length === 0 ? 'No unanswered interactions.' : `Resent ${interactions.length} unanswered interaction${interactions.length === 1 ? '' : 's'}.`,
+        message.message_thread_id === undefined ? undefined : { message_thread_id: message.message_thread_id },
+      );
       return;
     }
     if (message.reply_to_message === undefined) return;

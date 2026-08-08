@@ -39,6 +39,10 @@ class FakeBot implements RuntimeBot {
       this.calls.push({ method: 'editMessageReplyMarkup', args: [chatId, messageId, options] });
       return {};
     },
+    sendMessage: async (chatId: number, text: string, options?: unknown): Promise<unknown> => {
+      this.calls.push({ method: 'sendMessage', args: [chatId, text, options] });
+      return {};
+    },
   };
 
   on(filter: string, handler: (context: RuntimeContext) => Promise<void>): void {

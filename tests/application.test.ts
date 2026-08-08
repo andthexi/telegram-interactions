@@ -18,6 +18,7 @@ class FakeBot implements RuntimeBot {
     answerCallbackQuery: async (): Promise<void> => undefined,
     editMessageText: async (): Promise<void> => undefined,
     editMessageReplyMarkup: async (): Promise<void> => undefined,
+    sendMessage: async (): Promise<void> => undefined,
   };
   on(filter: string, handler: (context: RuntimeContext) => Promise<void>): void { this.handlers.set(filter, handler); }
   async start(): Promise<void> { this.started = true; }
