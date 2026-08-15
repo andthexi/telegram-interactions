@@ -80,6 +80,26 @@ describe('InteractionStore', () => {
     ]);
   });
 
+  it('does not requeue a failed passive notice for delivery retry', () => {
+    const notice = store.submit('jobsearch', 'job-search', {
+      idempotencyKey: 'scheduler-failure-1',
+      type: 'notice',
+      schema: {
+        schemaVersion: 1,
+        revision: 1,
+        title: 'Scheduler failed',
+        body: 'No substantive work ran.',
+        effect: 'Review repair state.',
+      },
+      destination: { chatId: -100_123, threadId: 42 },
+      allowedUserId: 777,
+    });
+
+    store.recordDeliveryAttempt(notice.interactionId, 'failed', 'transport_failed');
+
+    expect(store.listPendingDelivery().map((item) => item.interactionId)).not.toContain(notice.interactionId);
+  });
+
   it('records one immutable result and exposes it until a revision-bound acknowledgement', () => {
     const interaction = store.submit('jobsearch', 'job-search', request('result-1'));
     const first = store.recordResult(interaction.interactionId, { acknowledged: true }, 1);

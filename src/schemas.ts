@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export const INTERACTION_KINDS = [
+  'notice',
   'notification',
   'single_enum',
   'multi_enum_object',
@@ -64,6 +65,12 @@ const optionsSchema = (name = 'options') =>
         context.addIssue({ code: 'custom', message: `${name} values must be unique` });
       }
     });
+
+const noticeSchema = z
+  .object({
+    ...commonShape,
+  })
+  .strict();
 
 const notificationSchema = z
   .object({
@@ -136,12 +143,14 @@ const replyTextSchema = z
   });
 
 export type NotificationSchema = z.output<typeof notificationSchema>;
+export type NoticeSchema = z.output<typeof noticeSchema>;
 export type SingleEnumSchema = z.output<typeof singleEnumSchema>;
 export type MultiEnumSchema = z.output<typeof multiEnumSchema>;
 export type ReplyTextSchema = z.output<typeof replyTextSchema>;
-export type InteractionSchema = NotificationSchema | SingleEnumSchema | MultiEnumSchema | ReplyTextSchema;
+export type InteractionSchema = NoticeSchema | NotificationSchema | SingleEnumSchema | MultiEnumSchema | ReplyTextSchema;
 
 const validators = {
+  notice: noticeSchema,
   notification: notificationSchema,
   single_enum: singleEnumSchema,
   multi_enum_object: multiEnumSchema,
@@ -156,6 +165,7 @@ const validationMessage = (error: z.ZodError): string => {
   return issue?.message ?? 'schema is invalid';
 };
 
+export function validateSchema(kind: 'notice', schema: unknown): NoticeSchema;
 export function validateSchema(kind: 'notification', schema: unknown): NotificationSchema;
 export function validateSchema(kind: 'single_enum', schema: unknown): SingleEnumSchema;
 export function validateSchema(kind: 'multi_enum_object', schema: unknown): MultiEnumSchema;

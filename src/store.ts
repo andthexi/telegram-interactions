@@ -183,7 +183,7 @@ CREATE TABLE IF NOT EXISTS interactions (
   namespace_id INTEGER NOT NULL REFERENCES namespaces(id) ON DELETE CASCADE,
   idempotency_key TEXT NOT NULL,
   request_hash TEXT NOT NULL,
-  kind TEXT NOT NULL CHECK(kind IN ('notification', 'single_enum', 'multi_enum_object', 'reply_text')),
+  kind TEXT NOT NULL CHECK(kind IN ('notice', 'notification', 'single_enum', 'multi_enum_object', 'reply_text')),
   schema_json TEXT NOT NULL,
   destination_json TEXT NOT NULL,
   allowed_user_id INTEGER NOT NULL,
@@ -272,6 +272,7 @@ export class InteractionStore {
     this.database.pragma('busy_timeout = 10000');
     this.database.pragma('journal_mode = WAL');
     this.database.exec(SCHEMA);
+    this.migrateNoticeKind();
     chmodSync(path, 0o600);
   }
 
@@ -288,6 +289,29 @@ export class InteractionStore {
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
       .all() as Array<{ name: string }>;
     return { integrity, tables: rows.map((row) => row.name) };
+  }
+
+  private migrateNoticeKind(): void {
+    const row = this.database.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'interactions'").get() as { sql?: string } | undefined;
+    if (row?.sql?.includes("'notice'")) return;
+    this.database.exec(`
+      PRAGMA foreign_keys = OFF; BEGIN IMMEDIATE;
+      CREATE TABLE interactions_v2 (
+        id TEXT PRIMARY KEY, namespace_id INTEGER NOT NULL REFERENCES namespaces(id) ON DELETE CASCADE,
+        idempotency_key TEXT NOT NULL, request_hash TEXT NOT NULL,
+        kind TEXT NOT NULL CHECK(kind IN ('notice', 'notification', 'single_enum', 'multi_enum_object', 'reply_text')),
+        schema_json TEXT NOT NULL, destination_json TEXT NOT NULL, allowed_user_id INTEGER NOT NULL,
+        revision INTEGER NOT NULL CHECK(revision > 0), token TEXT NOT NULL UNIQUE,
+        state TEXT NOT NULL CHECK(state IN ('queued', 'delivered', 'delivery_uncertain', 'answered', 'failed')),
+        progress_json TEXT NOT NULL DEFAULT '{}', message_id INTEGER, chat_id INTEGER, thread_id INTEGER,
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL, answered_at TEXT,
+        UNIQUE(namespace_id, idempotency_key)
+      );
+      INSERT INTO interactions_v2 SELECT * FROM interactions;
+      DROP TABLE interactions; ALTER TABLE interactions_v2 RENAME TO interactions;
+      CREATE INDEX interactions_state_idx ON interactions(state, updated_at);
+      COMMIT; PRAGMA foreign_keys = ON;
+    `);
   }
 
   submit(namespace: string, workflow: string, request: SubmissionRequest): InteractionRecord {
@@ -370,7 +394,12 @@ export class InteractionStore {
 
   listPendingDelivery(): InteractionRecord[] {
     const rows = this.database
-      .prepare(`${interactionSelect} WHERE i.state IN ('queued', 'delivery_uncertain') ORDER BY i.updated_at, i.id`)
+      .prepare(`${interactionSelect}
+        WHERE i.state IN ('queued', 'delivery_uncertain')
+          AND (i.kind <> 'notice' OR NOT EXISTS (
+            SELECT 1 FROM delivery_attempts AS attempt WHERE attempt.interaction_id = i.id
+          ))
+        ORDER BY i.updated_at, i.id`)
       .all() as InteractionRow[];
     return rows.map((row) => this.mapInteraction(row));
   }

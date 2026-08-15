@@ -5,6 +5,7 @@ import type { InteractionStore, SubmissionRequest } from './store.js';
 
 const scopePattern = /^[a-z0-9][a-z0-9._-]{0,63}$/;
 const supportedKinds = new Set<InteractionKind>([
+  'notice',
   'notification',
   'single_enum',
   'multi_enum_object',

@@ -71,6 +71,8 @@ export function interactionActions(
 ): Record<string, ActionSpec> {
   const validated = validateSchema(kind, schema);
   switch (kind) {
+    case 'notice':
+      return {};
     case 'notification':
       return { ack: { action: 'acknowledge', value: true } };
     case 'single_enum':
@@ -124,6 +126,8 @@ export class TelegramRenderer {
     let text = `${validated.title}\n\n${validated.body}\n\nEffect: ${validated.effect}`;
     const buttons: InlineButton[][] = [];
     switch (kind) {
+      case 'notice':
+        break;
       case 'notification': {
         const notification = validated as NotificationSchema;
         buttons.push([{ label: notification.acknowledgeLabel, callbackData: callbackTokens.ack as string }]);
@@ -205,7 +209,8 @@ export class TelegramDelivery {
       Object.entries(actions).map(([key, action]) => [tokens[key] as string, action satisfies ActionBinding]),
     );
 
-    for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const maxAttempts = interaction.kind === 'notice' ? 1 : 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       try {
         const sent = await this.transport.sendMessage({
           chatId: interaction.destination.chatId,
@@ -218,7 +223,7 @@ export class TelegramDelivery {
       } catch (error) {
         if (!(error instanceof TelegramDeliveryError)) throw error;
         this.store.recordDeliveryAttempt(interactionId, error.uncertain ? 'uncertain' : 'failed', error.code);
-        if (attempt === 3) {
+        if (attempt === maxAttempts) {
           throw new DeliveryFailed(`delivery failed after 3 attempts: ${error.code}`);
         }
         await this.sleep(this.backoffMilliseconds * 2 ** (attempt - 1));

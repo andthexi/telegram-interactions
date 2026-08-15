@@ -71,6 +71,7 @@ describe('Telegram rendering and delivery', () => {
   });
 
   it.each([
+    ['notice', common, 0],
     ['notification', { ...common, acknowledgeLabel: 'Acknowledge' }, 1],
     ['single_enum', { ...common, options: [option('remote', 'Remote'), option('hybrid', 'Hybrid')] }, 2],
     ['reply_text', { ...common, minLength: 1, maxLength: 40, submitLabel: 'Reply directly' }, 0],
@@ -157,5 +158,15 @@ describe('Telegram rendering and delivery', () => {
     expect(transport.calls).toBe(3);
     expect(store.getInteraction(interaction.interactionId).state).toBe('queued');
     expect(store.activeCallbackBindings(interaction.interactionId)).toEqual([]);
+  });
+
+  it('delivers a passive notice once without buttons or retry', async () => {
+    const interaction = store.submit('jobsearch', 'job-search', submission('notice', common));
+    const transport = new FakeTransport(1);
+    const delivery = new TelegramDelivery(store, transport, { sleep: async () => undefined });
+
+    await expect(delivery.deliver(interaction.interactionId)).rejects.toThrowError(DeliveryFailed);
+    expect(transport.calls).toBe(1);
+    expect(transport.lastButtons).toEqual([]);
   });
 });
