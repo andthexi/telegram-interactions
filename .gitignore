@@ -6,4 +6,5 @@ coverage/
 *.db-wal
 *.sock
 .env
+runtime/
 migration/snapshots/

@@ -8,8 +8,7 @@ import { GrammyTransport } from './telegram.js';
 import type { RuntimeBot } from './runtime.js';
 
 export async function main(): Promise<void> {
-  const configPath = process.env.TELEGRAM_INTERACTIONS_CONFIG ?? './config.json';
-  const config = await loadRuntimeConfig(configPath);
+  const config = loadRuntimeConfig();
   const bot = new Bot(config.token);
   const application = createInteractionApplication(config, {
     bot: bot as unknown as RuntimeBot,

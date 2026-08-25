@@ -10,7 +10,7 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "start": "tsx src/main.ts",
+    "start": "node --env-file-if-exists=.env node_modules/tsx/dist/cli.mjs src/main.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "check": "npm run typecheck && npm run lint && npm test"

@@ -1,22 +1,48 @@
-import { readFile } from 'node:fs/promises';
-
-import { z } from 'zod';
-
-const configSchema = z.object({
-  databasePath: z.string().min(1),
-  socketPath: z.string().min(1),
-  telegram: z.object({ tokenEnvironmentVariable: z.string().regex(/^[A-Z][A-Z0-9_]*$/) }),
-  reconciliationIntervalMs: z.number().int().min(1_000).default(300_000),
-  deliveryIntervalMs: z.number().int().min(100).default(1_000),
-});
-
-export type RuntimeConfig = z.output<typeof configSchema> & { token: string };
-
-export async function loadRuntimeConfig(path: string, env: NodeJS.ProcessEnv = process.env): Promise<RuntimeConfig> {
-  const parsed = configSchema.parse(JSON.parse(await readFile(path, 'utf8')));
-  const token = env[parsed.telegram.tokenEnvironmentVariable];
-  if (token === undefined || token.trim().length === 0) {
-    throw new Error(`missing Telegram token environment variable: ${parsed.telegram.tokenEnvironmentVariable}`);
+const interval = (name: string, value: string | undefined, defaultValue: number, minimum: number): number => {
+  if (value === undefined || value.trim().length === 0) return defaultValue;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < minimum) {
+    throw new Error(`invalid environment variable: ${name}`);
   }
-  return { ...parsed, token };
+  return parsed;
+};
+
+export interface RuntimeConfig {
+  databasePath: string;
+  socketPath: string;
+  reconciliationIntervalMs: number;
+  deliveryIntervalMs: number;
+  token: string;
+}
+
+export function loadRuntimeConfig(env: NodeJS.ProcessEnv = process.env): RuntimeConfig {
+  const databasePath = env.TELEGRAM_INTERACTIONS_DATABASE_PATH;
+  if (databasePath === undefined || databasePath.trim().length === 0) {
+    throw new Error('missing environment variable: TELEGRAM_INTERACTIONS_DATABASE_PATH');
+  }
+  const socketPath = env.TELEGRAM_INTERACTIONS_SOCKET_PATH;
+  if (socketPath === undefined || socketPath.trim().length === 0) {
+    throw new Error('missing environment variable: TELEGRAM_INTERACTIONS_SOCKET_PATH');
+  }
+  const token = env.TELEGRAM_INTERACTIONS_BOT_TOKEN;
+  if (token === undefined || token.trim().length === 0) {
+    throw new Error('missing environment variable: TELEGRAM_INTERACTIONS_BOT_TOKEN');
+  }
+  return {
+    databasePath,
+    socketPath,
+    reconciliationIntervalMs: interval(
+      'TELEGRAM_INTERACTIONS_RECONCILIATION_INTERVAL_MS',
+      env.TELEGRAM_INTERACTIONS_RECONCILIATION_INTERVAL_MS,
+      300_000,
+      1_000,
+    ),
+    deliveryIntervalMs: interval(
+      'TELEGRAM_INTERACTIONS_DELIVERY_INTERVAL_MS',
+      env.TELEGRAM_INTERACTIONS_DELIVERY_INTERVAL_MS,
+      1_000,
+      100,
+    ),
+    token,
+  };
 }

@@ -7,11 +7,11 @@ state.
 ## Runtime contract
 
 - One service process is the sole Telegram poller and sole writer to the service SQLite database.
-- The Unix socket and SQLite database belong under the private runtime directory configured by
-  `config.json`; the service uses `UMask=0077` and creates the socket at mode `0600`.
-- `TELEGRAM_INTERACTIONS_CONFIG` points to the explicit configuration file. The bot token is read
-  only by direct `src/main.ts` execution from the named environment variable; it is never stored in
-  the repository or unit file.
+- The Unix socket path is supplied by `TELEGRAM_INTERACTIONS_SOCKET_PATH`, and the SQLite database
+  path by `TELEGRAM_INTERACTIONS_DATABASE_PATH`; the service uses `UMask=0077` and creates the
+  socket at mode `0600`.
+- The bot token and runtime settings are read only from the environment by direct `src/main.ts`
+  execution; secrets are never stored in the repository or unit file.
 - `Restart=on-failure` and `RestartSec=5` provide bounded supervisor recovery. The service has no
   command or permission to restart Hermes, a gateway, or another service.
 - `TimeoutStopSec=30` and `SIGTERM` allow runtime shutdown to stop polling, remove the socket, and

@@ -12,8 +12,13 @@ results to their owning workflow. It never invokes an LLM or interprets workflow
 - Node.js 22 or newer
 - npm 10 or newer
 
+Copy `.env.example` to `.env`, then set `TELEGRAM_INTERACTIONS_BOT_TOKEN`,
+`TELEGRAM_INTERACTIONS_DATABASE_PATH`, and `TELEGRAM_INTERACTIONS_SOCKET_PATH`. Runtime settings are
+supplied through the environment, so the repository contains no machine-specific database or socket
+locations. For a user service, `${XDG_RUNTIME_DIR}` is a suitable base directory.
+
 ```bash
-cd /home/hermes/telegram-interactions
+cd /path/to/telegram-interactions
 npm install
 npm run typecheck
 npm run lint
@@ -21,6 +26,10 @@ npm test
 # or all gates after installation
 npm run check
 ```
+
+Start the service with `npm start`. Node loads `.env` when it exists via
+`--env-file-if-exists=.env`; an absent `.env` is allowed, but the required environment variables must
+still be supplied by the shell or service manager.
 
 ## Architecture
 

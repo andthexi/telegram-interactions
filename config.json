@@ -1,9 +1,0 @@
-{
-  "databasePath": "/home/hermes/telegram-interactions/interactions.db",
-  "socketPath": "/run/user/1000/hermes-telegram-interactions/service.sock",
-  "telegram": {
-    "tokenEnvironmentVariable": "TELEGRAM_INTERACTIONS_BOT_TOKEN"
-  },
-  "reconciliationIntervalMs": 300000,
-  "deliveryIntervalMs": 1000
-}

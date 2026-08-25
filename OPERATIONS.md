@@ -6,7 +6,10 @@ bot, inspect production databases, change gateways, or install systemd units.
 ## Ownership and trust
 
 - One process owns the writable `InteractionStore`; clients never open its SQLite file.
-- The Unix socket is mode `0600`, and its parent is created mode `0700` when absent.
+- The database path is read from `TELEGRAM_INTERACTIONS_DATABASE_PATH` and the Unix socket path from
+  `TELEGRAM_INTERACTIONS_SOCKET_PATH`; the socket is mode `0600`, and its parent is created mode
+  `0700` when absent.
+- Reconciliation and delivery intervals are read from the environment, with bounded defaults.
 - Namespace/workflow values are trusted-local routing claims, but every query and acknowledgement
   remains scoped to both values.
 - Telegram authorization is separate: inbound actions must match the active opaque token,
@@ -150,7 +153,7 @@ A static, unenabled unit and deployment contract are present under `deploy/`. Th
 ## Safe developer checks
 
 ```bash
-cd /home/hermes/telegram-interactions
+cd /path/to/telegram-interactions
 npm install
 npm run typecheck
 npm run lint

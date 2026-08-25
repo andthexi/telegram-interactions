@@ -42,7 +42,6 @@ async function fixture(): Promise<{ root: string; config: RuntimeConfig }> {
     config: {
       databasePath: join(root, 'interactions.db'),
       socketPath: join(root, 'service.sock'),
-      telegram: { tokenEnvironmentVariable: 'FIXTURE_TOKEN' },
       reconciliationIntervalMs: 300_000,
       deliveryIntervalMs: 60_000,
       token: 'fixture-token',
