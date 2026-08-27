@@ -81,7 +81,7 @@ describe('InteractionRuntime', () => {
     runtime = new InteractionRuntime({
       bot,
       store,
-      service: new InteractionService(store),
+      service: new InteractionService(store, { defaultDestination: { chatId: -100, threadId: 7 }, defaultAllowedUserId: 42 }),
       lifecycle: new ResultLifecycle(store),
       delivery: new TelegramDelivery(store, new FakeTransport()),
       socketPath: join(directory, 'runtime.sock'),

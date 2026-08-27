@@ -45,6 +45,8 @@ async function fixture(): Promise<{ root: string; config: RuntimeConfig }> {
       reconciliationIntervalMs: 300_000,
       deliveryIntervalMs: 60_000,
       token: 'fixture-token',
+      defaultDestination: { chatId: -100_123, threadId: 42 },
+      defaultAllowedUserId: 777,
     },
   };
 }

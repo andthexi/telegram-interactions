@@ -9,7 +9,7 @@ import { InteractionService } from '../src/service.js';
 import { UnixSocketServer } from '../src/socket-api.js';
 import { InteractionStore } from '../src/store.js';
 
-const submitMessage = (key = 'packet-1') => ({
+const submitMessage = (key = 'packet-1', includeTarget = true) => ({
   op: 'submit',
   namespace: 'jobsearch',
   workflow: 'job-search',
@@ -24,8 +24,7 @@ const submitMessage = (key = 'packet-1') => ({
       effect: 'Acknowledge the fixture',
       acknowledgeLabel: 'Acknowledge',
     },
-    destination: { chatId: -100_123, threadId: 42 },
-    allowedUserId: 777,
+    ...(includeTarget ? { destination: { chatId: -100_123, threadId: 42 }, allowedUserId: 777 } : {}),
   },
 });
 
@@ -55,7 +54,10 @@ describe('Unix socket NDJSON API', () => {
     directory = await mkdtemp(join(tmpdir(), 'telegram-socket-'));
     socketPath = join(directory, 'service.sock');
     store = new InteractionStore(join(directory, 'interactions.db'));
-    server = new UnixSocketServer(socketPath, new InteractionService(store).handle);
+    server = new UnixSocketServer(socketPath, new InteractionService(store, {
+      defaultDestination: { chatId: -100_123, threadId: 42 },
+      defaultAllowedUserId: 777,
+    }).handle);
   });
 
   afterEach(async () => {
@@ -91,7 +93,10 @@ describe('Unix socket NDJSON API', () => {
   });
 
   it('rejects malformed submissions before touching the store', () => {
-    const service = new InteractionService(store);
+    const service = new InteractionService(store, {
+      defaultDestination: { chatId: -100_123, threadId: 42 },
+      defaultAllowedUserId: 777,
+    });
     expect(service.handle({ ...submitMessage(), namespace: '../escape' })).toEqual({
       ok: false,
       error: {
@@ -103,7 +108,10 @@ describe('Unix socket NDJSON API', () => {
   });
 
   it('bounds request frames without stopping the server', async () => {
-    server = new UnixSocketServer(socketPath, new InteractionService(store).handle, { maxRequestBytes: 1_024 });
+    server = new UnixSocketServer(socketPath, new InteractionService(store, {
+      defaultDestination: { chatId: -100_123, threadId: 42 },
+      defaultAllowedUserId: 777,
+    }).handle, { maxRequestBytes: 1_024 });
     await server.start();
     await expect(roundTrip(socketPath, Buffer.alloc(1_025, 'x'))).resolves.toEqual({
       ok: false,
@@ -112,6 +120,19 @@ describe('Unix socket NDJSON API', () => {
     await expect(roundTrip(socketPath, Buffer.from(JSON.stringify(submitMessage('packet-2'))))).resolves.toMatchObject({
       ok: true,
       state: 'queued',
+    });
+  });
+
+  it('uses service defaults when target fields are omitted', () => {
+    const service = new InteractionService(store, {
+      defaultDestination: { chatId: -100_123, threadId: 42 },
+      defaultAllowedUserId: 777,
+    });
+    const response = service.handle(submitMessage('defaults', false));
+    expect(response).toMatchObject({ ok: true, state: 'queued' });
+    expect(store.listInteractions('jobsearch', 'job-search')[0]).toMatchObject({
+      destination: { chatId: -100_123, threadId: 42 },
+      allowedUserId: 777,
     });
   });
 });

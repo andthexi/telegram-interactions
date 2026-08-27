@@ -1,7 +1,7 @@
 import { SchemaValidationError, validateSchema } from './schemas.js';
 import type { InteractionKind } from './schemas.js';
 import { StoreError } from './store.js';
-import type { InteractionStore, SubmissionRequest } from './store.js';
+import type { Destination, InteractionStore, SubmissionRequest } from './store.js';
 
 const scopePattern = /^[a-z0-9][a-z0-9._-]{0,63}$/;
 const supportedKinds = new Set<InteractionKind>([
@@ -36,7 +36,10 @@ function rejectUnknown(value: Record<string, unknown>, allowed: Set<string>, lab
 }
 
 export class InteractionService {
-  constructor(private readonly store: InteractionStore) {}
+  constructor(
+    private readonly store: InteractionStore,
+    private readonly defaults?: { defaultDestination: Destination; defaultAllowedUserId: number },
+  ) {}
 
   readonly handle = (message: unknown): ServiceResponse => {
     try {
@@ -159,17 +162,20 @@ export class InteractionService {
       throw new RequestError('invalid_request', 'type is not a supported interaction primitive');
     }
     const schema = validateSchema(kind, request.schema);
-    if (!isRecord(request.destination)) throw new RequestError('invalid_request', 'destination must be an object');
-    rejectUnknown(request.destination, new Set(['chatId', 'threadId']), 'destination');
-    const chatId = request.destination.chatId;
-    const threadId = request.destination.threadId;
+    const destinationOverride = request.destination;
+    if (destinationOverride !== undefined && !isRecord(destinationOverride)) throw new RequestError('invalid_request', 'destination must be an object');
+    if (isRecord(destinationOverride)) rejectUnknown(destinationOverride, new Set(['chatId', 'threadId']), 'destination');
+    const chatId = destinationOverride && destinationOverride.chatId !== undefined ? destinationOverride.chatId : this.defaults?.defaultDestination.chatId;
+    const threadId = destinationOverride && destinationOverride.threadId !== undefined ? destinationOverride.threadId : this.defaults?.defaultDestination.threadId;
+    if (chatId === undefined) throw new RequestError('service_config', 'fixed Telegram target is not configured');
     if (!Number.isInteger(chatId) || typeof chatId !== 'number') {
       throw new RequestError('invalid_request', 'destination.chatId must be an integer');
     }
     if (threadId !== undefined && (!Number.isInteger(threadId) || typeof threadId !== 'number' || threadId < 1)) {
       throw new RequestError('invalid_request', 'destination.threadId must be a positive integer when present');
     }
-    const allowedUserId = request.allowedUserId;
+    const allowedUserId = request.allowedUserId === undefined ? this.defaults?.defaultAllowedUserId : request.allowedUserId;
+    if (allowedUserId === undefined) throw new RequestError('service_config', 'fixed Telegram operator is not configured');
     if (!Number.isInteger(allowedUserId) || typeof allowedUserId !== 'number' || allowedUserId < 1) {
       throw new RequestError('invalid_request', 'allowedUserId must be a positive integer');
     }

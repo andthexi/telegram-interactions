@@ -28,7 +28,10 @@ export function createInteractionApplication(
   const runtime = new InteractionRuntime({
     bot: dependencies.bot,
     store,
-    service: new InteractionService(store),
+    service: new InteractionService(store, {
+      defaultDestination: config.defaultDestination,
+      defaultAllowedUserId: config.defaultAllowedUserId,
+    }),
     lifecycle: new ResultLifecycle(store),
     delivery: new TelegramDelivery(store, dependencies.transport),
     socketPath: config.socketPath,

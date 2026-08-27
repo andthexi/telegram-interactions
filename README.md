@@ -13,7 +13,9 @@ results to their owning workflow. It never invokes an LLM or interprets workflow
 - npm 10 or newer
 
 Copy `.env.example` to `.env`, then set `TELEGRAM_INTERACTIONS_BOT_TOKEN`,
-`TELEGRAM_INTERACTIONS_DATABASE_PATH`, and `TELEGRAM_INTERACTIONS_SOCKET_PATH`. Runtime settings are
+`TELEGRAM_INTERACTIONS_DATABASE_PATH`, `TELEGRAM_INTERACTIONS_SOCKET_PATH`,
+`TELEGRAM_INTERACTIONS_DEFAULT_CHAT_ID`, and `TELEGRAM_INTERACTIONS_DEFAULT_OPERATOR_USER_ID`.
+`TELEGRAM_INTERACTIONS_DEFAULT_THREAD_ID` is optional. Runtime settings are
 supplied through the environment, so the repository contains no machine-specific database or socket
 locations. For a user service, `${XDG_RUNTIME_DIR}` is a suitable base directory.
 
@@ -80,6 +82,9 @@ intentionally outside this prototype.
    most one result. A stale/replayed Telegram action cannot create another.
 7. Workflows poll only their namespace/workflow and acknowledge by interaction ID plus revision.
 8. Cleanup removes only answered, workflow-acknowledged interactions at least seven days old.
+
+Submit callers may omit `destination` and `allowedUserId`; the service resolves those fields from
+its fixed `.env` defaults. Explicit request values remain supported as overrides for compatibility.
 
 ## Multi-field packet bound
 

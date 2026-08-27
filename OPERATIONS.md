@@ -25,7 +25,7 @@ revisions, and illegal transitions return deterministic error objects.
 ### Submit
 
 ```json
-{"op":"submit","namespace":"jobsearch","workflow":"job-search","request":{"idempotencyKey":"packet-17-r1","type":"notification","schema":{"schemaVersion":1,"revision":1,"title":"Review","body":"Review the bounded request.","effect":"Acknowledges the request.","acknowledgeLabel":"Acknowledge"},"destination":{"chatId":-100123,"threadId":42},"allowedUserId":777}}
+{"op":"submit","namespace":"jobsearch","workflow":"job-search","request":{"idempotencyKey":"packet-17-r1","type":"notification","schema":{"schemaVersion":1,"revision":1,"title":"Review","body":"Review the bounded request.","effect":"Acknowledges the request.","acknowledgeLabel":"Acknowledge"}}}
 ```
 
 ```json
@@ -50,6 +50,10 @@ revisions, and illegal transitions return deterministic error objects.
 
 Acknowledgement is idempotent. A client must commit its workflow ledger and wake marker before
 acknowledging; otherwise it can lose its own retry signal.
+
+`destination` and `allowedUserId` are optional submit request fields. When omitted, the service uses
+`TELEGRAM_INTERACTIONS_DEFAULT_CHAT_ID`, optional `TELEGRAM_INTERACTIONS_DEFAULT_THREAD_ID`, and
+`TELEGRAM_INTERACTIONS_DEFAULT_OPERATOR_USER_ID`. Explicit values override those defaults.
 
 ### Heartbeat
 
