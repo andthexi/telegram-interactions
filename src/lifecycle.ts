@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 
 import { validateReplyText } from './schemas.js';
-import type { ReplyTextSchema } from './schemas.js';
+import type { ChoiceWithOptionalReplySchema, ReplyTextSchema } from './schemas.js';
 import { StaleCallback } from './store.js';
 import type { ActionBinding, InboundContext, InteractionRecord, InteractionStore } from './store.js';
 import { TelegramRenderer, interactionActions } from './telegram.js';
@@ -36,6 +36,9 @@ export class ResultLifecycle {
       case 'acknowledge':
         return this.resolve(input.token, interaction, { acknowledged: true }, inbound);
       case 'choose':
+        if (interaction.kind === 'choice_with_optional_reply' && binding.value === (interaction.schema as ChoiceWithOptionalReplySchema).replyOption) {
+          return this.advance(input.token, interaction, { phase: 'awaiting_reply', selectedValue: binding.value }, inbound);
+        }
         return this.resolve(input.token, interaction, { value: binding.value }, inbound);
       case 'wizard_confirm':
         return this.resolve(input.token, interaction, { values: binding.value }, inbound);
@@ -56,7 +59,23 @@ export class ResultLifecycle {
   handleReply(input: InboundContext & { replyToMessageId: number; text: unknown }): LifecycleOutcome | null {
     const interaction = this.store.findReplyInteraction(input.chatId, input.threadId, input.replyToMessageId);
     if (interaction === null) return null;
-    const text = validateReplyText(interaction.schema as ReplyTextSchema, input.text);
+    const replySchema = interaction.kind === 'choice_with_optional_reply'
+      ? {
+          schemaVersion: 1 as const,
+          revision: interaction.revision,
+          title: interaction.schema.title,
+          body: interaction.schema.body,
+          effect: interaction.schema.effect,
+          ...(interaction.schema as ChoiceWithOptionalReplySchema).reply,
+        }
+      : interaction.schema as ReplyTextSchema;
+    const text = validateReplyText(replySchema, input.text);
+    const resultValue = interaction.kind === 'choice_with_optional_reply'
+      ? (interaction.progress as { selectedValue?: unknown }).selectedValue
+      : undefined;
+    if (interaction.kind === 'choice_with_optional_reply' && typeof resultValue !== 'string') {
+      throw new StaleCallback('reply binding is stale');
+    }
     const result = this.store.recordReplyResult(
       interaction.interactionId,
       {
@@ -65,7 +84,7 @@ export class ResultLifecycle {
         threadId: input.threadId,
         replyToMessageId: input.replyToMessageId,
       },
-      { text },
+      interaction.kind === 'choice_with_optional_reply' ? { value: resultValue, text } : { text },
     );
     return {
       interactionId: interaction.interactionId,

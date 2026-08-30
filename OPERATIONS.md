@@ -71,9 +71,8 @@ effect. Objects are strict: unknown fields (including private evidence blobs) ar
 - `notification`: one acknowledgement button.
 - `single_enum`: 1–10 labelled symbolic choices.
 - `multi_enum_object`: 1–8 enum fields, rendered one at a time, then review/confirm or restart.
-- `reply_text`: length-bounded text with an optional bounded regex; only a direct reply to the
-  persisted card message is accepted. Lookarounds, backreferences, inline modifiers, and nested
-  quantifiers are rejected.
+- `reply_text`: length-bounded text with an optional bounded regex; only a direct reply to the persisted card message is accepted. Lookarounds, backreferences, inline modifiers, and nested quantifiers are rejected.
+- `choice_with_optional_reply`: bounded enum choices with one declared option that transitions the same interaction into a direct-reply phase. The final result is `{value}` for ordinary options or `{value, text}` for the reply branch.
 
 Telegram cards are plain text. Semantic values are persisted server-side and mapped to random
 `cb_...` tokens; packet payloads and private evidence never appear in callback data.

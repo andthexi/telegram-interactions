@@ -75,6 +75,7 @@ describe('Telegram rendering and delivery', () => {
     ['notification', { ...common, acknowledgeLabel: 'Acknowledge' }, 1],
     ['single_enum', { ...common, options: [option('remote', 'Remote'), option('hybrid', 'Hybrid')] }, 2],
     ['reply_text', { ...common, minLength: 1, maxLength: 40, submitLabel: 'Reply directly' }, 0],
+    ['choice_with_optional_reply', { ...common, options: [option('drop_lead', 'Drop lead'), option('custom_guidance', 'Custom guidance')], replyOption: 'custom_guidance', reply: { minLength: 1, maxLength: 40, submitLabel: 'Send instructions' } }, 2],
   ] as const)('renders one %s card using only opaque callbacks', (kind, schema, expectedRows) => {
     const actions = interactionActions(kind, schema, {});
     const tokens = Object.fromEntries(Object.keys(actions).map((key, index) => [key, `cb_${String(index + 1).padStart(24, '0')}`]));

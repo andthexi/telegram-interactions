@@ -10,6 +10,7 @@ const supportedKinds = new Set<InteractionKind>([
   'single_enum',
   'multi_enum_object',
   'reply_text',
+  'choice_with_optional_reply',
 ]);
 
 export type ServiceResponse = Record<string, unknown> & { ok: boolean };

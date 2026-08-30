@@ -6,6 +6,7 @@ export const INTERACTION_KINDS = [
   'single_enum',
   'multi_enum_object',
   'reply_text',
+  'choice_with_optional_reply',
 ] as const;
 
 export type InteractionKind = (typeof INTERACTION_KINDS)[number];
@@ -142,12 +143,42 @@ const replyTextSchema = z
     }
   });
 
+const choiceWithOptionalReplySchema = z
+  .object({
+    ...commonShape,
+    options: optionsSchema(),
+    replyOption: z.string().regex(symbolicValue, { error: 'replyOption must be a bounded symbolic value' }),
+    reply: z.object({
+      minLength: z.number().int().min(0).max(MAX_TEXT_LENGTH),
+      maxLength: z.number().int().min(1).max(MAX_TEXT_LENGTH),
+      pattern: z.string().min(1).max(MAX_PATTERN_LENGTH).optional(),
+      submitLabel: boundedText('submitLabel', MAX_LABEL),
+    }).strict(),
+  })
+  .strict()
+  .superRefine((schema, context) => {
+    if (!new Set(schema.options.map((option) => option.value)).has(schema.replyOption)) {
+      context.addIssue({ code: 'custom', message: 'replyOption must match a declared option' });
+    }
+    if (schema.reply.minLength > schema.reply.maxLength) {
+      context.addIssue({ code: 'custom', message: 'minLength cannot exceed maxLength' });
+    }
+    if (schema.reply.pattern !== undefined) {
+      if (/\(\?|\\[1-9]/u.test(schema.reply.pattern) || /\([^)]*[+*][^)]*\)[+*{]/u.test(schema.reply.pattern)) {
+        context.addIssue({ code: 'custom', message: 'pattern cannot contain lookarounds, inline modifiers, backreferences, or nested quantifiers' });
+      } else {
+        try { new RegExp(schema.reply.pattern, 'u'); } catch { context.addIssue({ code: 'custom', message: 'pattern is not a valid regular expression' }); }
+      }
+    }
+  });
+
 export type NotificationSchema = z.output<typeof notificationSchema>;
+export type ChoiceWithOptionalReplySchema = z.output<typeof choiceWithOptionalReplySchema>;
 export type NoticeSchema = z.output<typeof noticeSchema>;
 export type SingleEnumSchema = z.output<typeof singleEnumSchema>;
 export type MultiEnumSchema = z.output<typeof multiEnumSchema>;
 export type ReplyTextSchema = z.output<typeof replyTextSchema>;
-export type InteractionSchema = NoticeSchema | NotificationSchema | SingleEnumSchema | MultiEnumSchema | ReplyTextSchema;
+export type InteractionSchema = NoticeSchema | NotificationSchema | SingleEnumSchema | MultiEnumSchema | ReplyTextSchema | ChoiceWithOptionalReplySchema;
 
 const validators = {
   notice: noticeSchema,
@@ -155,6 +186,7 @@ const validators = {
   single_enum: singleEnumSchema,
   multi_enum_object: multiEnumSchema,
   reply_text: replyTextSchema,
+  choice_with_optional_reply: choiceWithOptionalReplySchema,
 } as const;
 
 const validationMessage = (error: z.ZodError): string => {
@@ -170,6 +202,7 @@ export function validateSchema(kind: 'notification', schema: unknown): Notificat
 export function validateSchema(kind: 'single_enum', schema: unknown): SingleEnumSchema;
 export function validateSchema(kind: 'multi_enum_object', schema: unknown): MultiEnumSchema;
 export function validateSchema(kind: 'reply_text', schema: unknown): ReplyTextSchema;
+export function validateSchema(kind: 'choice_with_optional_reply', schema: unknown): ChoiceWithOptionalReplySchema;
 export function validateSchema(kind: unknown, schema: unknown): InteractionSchema;
 export function validateSchema(kind: unknown, schema: unknown): InteractionSchema {
   if (typeof kind !== 'string' || !INTERACTION_KINDS.includes(kind as InteractionKind)) {

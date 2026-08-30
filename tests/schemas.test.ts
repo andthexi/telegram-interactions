@@ -12,7 +12,7 @@ const common = {
 
 const option = (value: string, label: string) => ({ value, label, effect: `Records ${label}.` });
 
-describe('the four schema primitives', () => {
+describe('the interaction schema primitives', () => {
   it.each([
     ['notification', { ...common, acknowledgeLabel: 'Acknowledge' }],
     ['single_enum', { ...common, options: [option('remote', 'Remote'), option('hybrid', 'Hybrid')] }],
@@ -30,7 +30,16 @@ describe('the four schema primitives', () => {
     ],
     [
       'reply_text',
-      { ...common, minLength: 3, maxLength: 80, pattern: "^[A-Za-z0-9 .,'-]+$", submitLabel: 'Reply directly' },
+      { ...common, minLength: 3, maxLength: 80, submitLabel: 'Reply directly' },
+    ],
+    [
+      'choice_with_optional_reply',
+      {
+        ...common,
+        options: [option('drop_lead', 'Drop lead'), option('custom_guidance', 'Give custom guidance')],
+        replyOption: 'custom_guidance',
+        reply: { minLength: 3, maxLength: 80, submitLabel: 'Send instructions' },
+      },
     ],
   ] as const)('validates %s defensively', (kind, schema) => {
     const validated = validateSchema(kind, schema);
@@ -84,5 +93,14 @@ describe('the four schema primitives', () => {
     expect(validateReplyText(schema, 'Valid text')).toBe('Valid text');
     expect(() => validateReplyText(schema, 'no!')).toThrowError('reply text does not match the required pattern');
     expect(() => validateSchema('reply_text', { ...schema, pattern: '(?=unsafe).*' })).toThrow(SchemaValidationError);
+  });
+
+  it('requires the optional reply branch to name exactly one declared option', () => {
+    expect(() => validateSchema('choice_with_optional_reply', {
+      ...common,
+      options: [option('drop_lead', 'Drop lead')],
+      replyOption: 'custom_guidance',
+      reply: { minLength: 1, maxLength: 80, submitLabel: 'Send instructions' },
+    })).toThrowError('replyOption must match a declared option');
   });
 });

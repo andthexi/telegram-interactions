@@ -181,7 +181,7 @@ export class InteractionRuntime {
       keyboard.row();
     }
     await this.options.bot.api.editMessageText(chatId, messageId, card.text, {
-      ...(card.buttons.length === 0 ? {} : { reply_markup: keyboard }),
+      reply_markup: card.buttons.length === 0 ? { inline_keyboard: [] } : keyboard,
     });
   }
 }

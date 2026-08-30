@@ -10,8 +10,9 @@ import type {
   InteractionSchema,
   MultiEnumSchema,
   NotificationSchema,
-  ReplyTextSchema,
   SingleEnumSchema,
+  ChoiceWithOptionalReplySchema,
+  ReplyTextSchema,
 } from './schemas.js';
 import type { ActionBinding, InteractionStore } from './store.js';
 
@@ -100,6 +101,11 @@ export function interactionActions(
     }
     case 'reply_text':
       return {};
+    case 'choice_with_optional_reply': {
+      const mixed = validated as ChoiceWithOptionalReplySchema;
+      if (progress.phase === 'awaiting_reply') return {};
+      return Object.fromEntries(mixed.options.map((option) => [`choose:${option.value}`, { action: 'choose', value: option.value }]));
+    }
   }
 }
 
@@ -173,6 +179,17 @@ export class TelegramRenderer {
       case 'reply_text': {
         const reply = validated as ReplyTextSchema;
         text += `\n\n${reply.submitLabel}: send a direct reply to this message (${reply.minLength}-${reply.maxLength} characters).`;
+        break;
+      }
+      case 'choice_with_optional_reply': {
+        const mixed = validated as ChoiceWithOptionalReplySchema;
+        if (progress.phase === 'awaiting_reply') {
+          text += `\n\n${mixed.reply.submitLabel}: send a direct reply to this message (${mixed.reply.minLength}-${mixed.reply.maxLength} characters).`;
+        } else {
+          for (const option of mixed.options) {
+            buttons.push([{ label: option.label, callbackData: callbackTokens[`choose:${option.value}`] as string }]);
+          }
+        }
         break;
       }
     }

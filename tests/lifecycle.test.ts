@@ -197,6 +197,27 @@ describe('result lifecycle and reconciliation', () => {
     ).toEqual({ text: 'Valid text' });
   });
 
+  it('keeps choice and custom guidance in one interaction', () => {
+    const interaction = store.submit('jobsearch', 'job-search', request('mixed', 'choice_with_optional_reply', {
+      ...common,
+      options: [option('drop_lead', 'Drop lead'), option('custom_guidance', 'Custom guidance')],
+      replyOption: 'custom_guidance',
+      reply: { minLength: 3, maxLength: 40, pattern: '^[A-Za-z ]+$', submitLabel: 'Send instructions' },
+    }));
+    const token = deliverWithBinding(store, interaction, 'cb_mixed_1234567890abcdef', { action: 'choose', value: 'custom_guidance' });
+    const lifecycle = new ResultLifecycle(store);
+    const advanced = lifecycle.handleCallback({ token, userId: 777, chatId: -100_123, threadId: 42 });
+    expect(advanced.resolved).toBe(false);
+    expect(advanced.result).toBeNull();
+    expect(advanced.card?.text).toContain('Send instructions');
+    expect(store.pollResults('jobsearch', 'job-search')).toEqual([]);
+    expect(store.getInteraction(interaction.interactionId).progress).toEqual({ phase: 'awaiting_reply', selectedValue: 'custom_guidance' });
+
+    expect(() => lifecycle.handleReply({ userId: 777, chatId: -100_123, threadId: 42, replyToMessageId: 9_001, text: 'bad!' })).toThrowError();
+    const result = lifecycle.handleReply({ userId: 777, chatId: -100_123, threadId: 42, replyToMessageId: 9_001, text: 'Check eligibility' });
+    expect(result?.result).toEqual({ value: 'custom_guidance', text: 'Check eligibility' });
+    expect(store.pollResults('jobsearch', 'job-search')).toHaveLength(1);
+  });
   it('polls and acknowledges results through the scoped socket-service operations', () => {
     const interaction = store.submit('jobsearch', 'job-search', request('service-result'));
     const token = deliverWithBinding(store, interaction);

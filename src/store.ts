@@ -183,7 +183,7 @@ CREATE TABLE IF NOT EXISTS interactions (
   namespace_id INTEGER NOT NULL REFERENCES namespaces(id) ON DELETE CASCADE,
   idempotency_key TEXT NOT NULL,
   request_hash TEXT NOT NULL,
-  kind TEXT NOT NULL CHECK(kind IN ('notice', 'notification', 'single_enum', 'multi_enum_object', 'reply_text')),
+  kind TEXT NOT NULL CHECK(kind IN ('notice', 'notification', 'single_enum', 'multi_enum_object', 'reply_text', 'choice_with_optional_reply')),
   schema_json TEXT NOT NULL,
   destination_json TEXT NOT NULL,
   allowed_user_id INTEGER NOT NULL,
@@ -293,13 +293,13 @@ export class InteractionStore {
 
   private migrateNoticeKind(): void {
     const row = this.database.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'interactions'").get() as { sql?: string } | undefined;
-    if (row?.sql?.includes("'notice'")) return;
+    if (row?.sql?.includes("'choice_with_optional_reply'")) return;
     this.database.exec(`
       PRAGMA foreign_keys = OFF; BEGIN IMMEDIATE;
       CREATE TABLE interactions_v2 (
         id TEXT PRIMARY KEY, namespace_id INTEGER NOT NULL REFERENCES namespaces(id) ON DELETE CASCADE,
         idempotency_key TEXT NOT NULL, request_hash TEXT NOT NULL,
-        kind TEXT NOT NULL CHECK(kind IN ('notice', 'notification', 'single_enum', 'multi_enum_object', 'reply_text')),
+        kind TEXT NOT NULL CHECK(kind IN ('notice', 'notification', 'single_enum', 'multi_enum_object', 'reply_text', 'choice_with_optional_reply')),
         schema_json TEXT NOT NULL, destination_json TEXT NOT NULL, allowed_user_id INTEGER NOT NULL,
         revision INTEGER NOT NULL CHECK(revision > 0), token TEXT NOT NULL UNIQUE,
         state TEXT NOT NULL CHECK(state IN ('queued', 'delivered', 'delivery_uncertain', 'answered', 'failed')),
@@ -548,7 +548,7 @@ export class InteractionStore {
   findReplyInteraction(chatId: number, threadId: number | null, messageId: number): InteractionRecord | null {
     const row = this.database
       .prepare(
-        `${interactionSelect} WHERE i.kind = 'reply_text' AND i.state = 'delivered' AND i.chat_id = ? AND i.thread_id IS ? AND i.message_id = ?`,
+        `${interactionSelect} WHERE i.state = 'delivered' AND (i.kind = 'reply_text' OR (i.kind = 'choice_with_optional_reply' AND json_extract(i.progress_json, '$.phase') = 'awaiting_reply')) AND i.chat_id = ? AND i.thread_id IS ? AND i.message_id = ?`,
       )
       .get(chatId, threadId, messageId) as InteractionRow | undefined;
     return row === undefined ? null : this.mapInteraction(row);
@@ -562,10 +562,13 @@ export class InteractionStore {
     const execute = this.database.transaction(() => {
       const interaction = this.requireInteraction(interactionId);
       if (
-        interaction.kind !== 'reply_text' ||
+        !['reply_text', 'choice_with_optional_reply'].includes(interaction.kind) ||
         interaction.state !== 'delivered' ||
         interaction.messageId !== context.replyToMessageId
       ) {
+        throw new StaleCallback('reply binding is stale');
+      }
+      if (interaction.kind === 'choice_with_optional_reply' && interaction.progress.phase !== 'awaiting_reply') {
         throw new StaleCallback('reply binding is stale');
       }
       this.validateInboundContext(interaction, context);
