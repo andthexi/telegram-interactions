@@ -6,6 +6,7 @@ import type { InteractionStore } from './store.js';
 import type { TelegramDelivery } from './telegram.js';
 import type { RenderedMessage } from './telegram.js';
 import { UnixSocketServer } from './socket-api.js';
+import type { ResultEventServer, ResultReadyInput } from './result-events.js';
 
 type CallbackApi = {
   answerCallbackQuery: (id: string, options?: { text?: string }) => Promise<unknown>;
@@ -49,6 +50,8 @@ export interface InteractionRuntimeOptions {
   lifecycle: ResultLifecycle;
   delivery: TelegramDelivery;
   socketPath: string;
+  resultEventsSocketPath: string;
+  resultEvents: Pick<ResultEventServer, 'start' | 'stop' | 'emitResultReady'>;
   deliveryIntervalMs: number;
 }
 
@@ -67,6 +70,7 @@ export class InteractionRuntime {
     this.options.bot.on('callback_query:data', (context) => this.handleCallback(context));
     this.options.bot.on('message:text', (context) => this.handleMessage(context));
     await this.socket.start();
+    await this.options.resultEvents.start();
     this.started = true;
     await this.deliverPending();
     this.deliveryTimer = setInterval(() => {
@@ -100,6 +104,7 @@ export class InteractionRuntime {
     }
     if (!this.started) return;
     await this.options.bot.stop();
+    await this.options.resultEvents.stop();
     await this.socket.stop();
     this.started = false;
   }
@@ -119,6 +124,7 @@ export class InteractionRuntime {
         chatId: message.chat.id,
         threadId: message.message_thread_id ?? null,
       });
+      if (outcome.resolved) this.emitResultReadyBestEffort(outcome.interactionId);
       if (outcome.card !== null) {
         await this.editCard(message.chat.id, message.message_id, outcome.card);
       } else {
@@ -162,15 +168,31 @@ export class InteractionRuntime {
     }
     if (message.reply_to_message === undefined) return;
     try {
-      this.options.lifecycle.handleReply({
+      const outcome = this.options.lifecycle.handleReply({
         userId: message.from.id,
         chatId: message.chat.id,
         threadId: message.message_thread_id ?? null,
         replyToMessageId: message.reply_to_message.message_id,
         text: message.text,
       });
+      if (outcome?.resolved) this.emitResultReadyBestEffort(outcome.interactionId);
     } catch {
       // Invalid or unauthorized replies are ignored; the persisted interaction remains unchanged.
+    }
+  }
+
+  private emitResultReadyBestEffort(interactionId: string): void {
+    try {
+      const interaction = this.options.store.getInteraction(interactionId);
+      const event: ResultReadyInput = {
+        namespace: interaction.namespace,
+        workflow: interaction.workflow,
+        interactionId,
+        revision: interaction.revision,
+      };
+      this.options.resultEvents.emitResultReady(event);
+    } catch {
+      this.options.store.recordHealthEvent('result_event_delivery_failed', { interactionId });
     }
   }
 

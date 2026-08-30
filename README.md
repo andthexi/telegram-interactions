@@ -14,6 +14,7 @@ results to their owning workflow. It never invokes an LLM or interprets workflow
 
 Copy `.env.example` to `.env`, then set `TELEGRAM_INTERACTIONS_BOT_TOKEN`,
 `TELEGRAM_INTERACTIONS_DATABASE_PATH`, `TELEGRAM_INTERACTIONS_SOCKET_PATH`,
+`TELEGRAM_INTERACTIONS_RESULT_EVENTS_SOCKET`,
 `TELEGRAM_INTERACTIONS_DEFAULT_CHAT_ID`, and `TELEGRAM_INTERACTIONS_DEFAULT_OPERATOR_USER_ID`.
 `TELEGRAM_INTERACTIONS_DEFAULT_THREAD_ID` is optional. Runtime settings are
 supplied through the environment, so the repository contains no machine-specific database or socket

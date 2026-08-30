@@ -7,6 +7,7 @@ afterEach(() => {
   delete process.env.TELEGRAM_INTERACTIONS_BOT_TOKEN;
   delete process.env.TELEGRAM_INTERACTIONS_DATABASE_PATH;
   delete process.env.TELEGRAM_INTERACTIONS_SOCKET_PATH;
+  delete process.env.TELEGRAM_INTERACTIONS_RESULT_EVENTS_SOCKET;
   delete process.env.TELEGRAM_INTERACTIONS_DEFAULT_CHAT_ID;
   delete process.env.TELEGRAM_INTERACTIONS_DEFAULT_THREAD_ID;
   delete process.env.TELEGRAM_INTERACTIONS_DEFAULT_OPERATOR_USER_ID;
@@ -20,6 +21,7 @@ describe('runtime configuration', () => {
       TELEGRAM_INTERACTIONS_BOT_TOKEN: 'fixture-token',
       TELEGRAM_INTERACTIONS_DATABASE_PATH: './interactions.db',
       TELEGRAM_INTERACTIONS_SOCKET_PATH: './service.sock',
+      TELEGRAM_INTERACTIONS_RESULT_EVENTS_SOCKET: './result-events.sock',
       TELEGRAM_INTERACTIONS_DEFAULT_CHAT_ID: '-100123',
       TELEGRAM_INTERACTIONS_DEFAULT_THREAD_ID: '42',
       TELEGRAM_INTERACTIONS_DEFAULT_OPERATOR_USER_ID: '777',
@@ -31,6 +33,7 @@ describe('runtime configuration', () => {
       token: 'fixture-token',
       databasePath: './interactions.db',
       socketPath: './service.sock',
+      resultEventsSocketPath: './result-events.sock',
       reconciliationIntervalMs: 120_000,
       deliveryIntervalMs: 500,
       defaultDestination: { chatId: -100123, threadId: 42 },
@@ -43,6 +46,7 @@ describe('runtime configuration', () => {
       TELEGRAM_INTERACTIONS_BOT_TOKEN: 'fixture-token',
       TELEGRAM_INTERACTIONS_DATABASE_PATH: './interactions.db',
       TELEGRAM_INTERACTIONS_SOCKET_PATH: './service.sock',
+      TELEGRAM_INTERACTIONS_RESULT_EVENTS_SOCKET: './result-events.sock',
       TELEGRAM_INTERACTIONS_DEFAULT_CHAT_ID: '-100123',
       TELEGRAM_INTERACTIONS_DEFAULT_OPERATOR_USER_ID: '777',
     });
@@ -57,6 +61,7 @@ describe('runtime configuration', () => {
     expect(() => loadRuntimeConfig({
       TELEGRAM_INTERACTIONS_BOT_TOKEN: 'fixture-token',
       TELEGRAM_INTERACTIONS_SOCKET_PATH: './service.sock',
+      TELEGRAM_INTERACTIONS_RESULT_EVENTS_SOCKET: './result-events.sock',
       TELEGRAM_INTERACTIONS_DEFAULT_CHAT_ID: '-100123',
       TELEGRAM_INTERACTIONS_DEFAULT_OPERATOR_USER_ID: '777',
     })).toThrow('missing environment variable: TELEGRAM_INTERACTIONS_DATABASE_PATH');
@@ -67,6 +72,7 @@ describe('runtime configuration', () => {
       TELEGRAM_INTERACTIONS_BOT_TOKEN: 'fixture-token',
       TELEGRAM_INTERACTIONS_DATABASE_PATH: './interactions.db',
       TELEGRAM_INTERACTIONS_SOCKET_PATH: './service.sock',
+      TELEGRAM_INTERACTIONS_RESULT_EVENTS_SOCKET: './result-events.sock',
     })).toThrow('missing environment variable: TELEGRAM_INTERACTIONS_DEFAULT_CHAT_ID');
   });
 
@@ -75,6 +81,7 @@ describe('runtime configuration', () => {
       TELEGRAM_INTERACTIONS_BOT_TOKEN: 'fixture-token',
       TELEGRAM_INTERACTIONS_DATABASE_PATH: './interactions.db',
       TELEGRAM_INTERACTIONS_SOCKET_PATH: './service.sock',
+      TELEGRAM_INTERACTIONS_RESULT_EVENTS_SOCKET: './result-events.sock',
       TELEGRAM_INTERACTIONS_DEFAULT_CHAT_ID: '-100123',
       TELEGRAM_INTERACTIONS_DEFAULT_OPERATOR_USER_ID: '777',
       TELEGRAM_INTERACTIONS_DELIVERY_INTERVAL_MS: 'not-a-number',

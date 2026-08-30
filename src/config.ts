@@ -24,6 +24,7 @@ export interface DefaultDestination {
 export interface RuntimeConfig {
   databasePath: string;
   socketPath: string;
+  resultEventsSocketPath: string;
   reconciliationIntervalMs: number;
   deliveryIntervalMs: number;
   token: string;
@@ -40,6 +41,10 @@ export function loadRuntimeConfig(env: NodeJS.ProcessEnv = process.env): Runtime
   if (socketPath === undefined || socketPath.trim().length === 0) {
     throw new Error('missing environment variable: TELEGRAM_INTERACTIONS_SOCKET_PATH');
   }
+  const resultEventsSocketPath = env.TELEGRAM_INTERACTIONS_RESULT_EVENTS_SOCKET;
+  if (resultEventsSocketPath === undefined || resultEventsSocketPath.trim().length === 0) {
+    throw new Error('missing environment variable: TELEGRAM_INTERACTIONS_RESULT_EVENTS_SOCKET');
+  }
   const token = env.TELEGRAM_INTERACTIONS_BOT_TOKEN;
   if (token === undefined || token.trim().length === 0) {
     throw new Error('missing environment variable: TELEGRAM_INTERACTIONS_BOT_TOKEN');
@@ -52,6 +57,7 @@ export function loadRuntimeConfig(env: NodeJS.ProcessEnv = process.env): Runtime
   return {
     databasePath,
     socketPath,
+    resultEventsSocketPath,
     reconciliationIntervalMs: interval(
       'TELEGRAM_INTERACTIONS_RECONCILIATION_INTERVAL_MS',
       env.TELEGRAM_INTERACTIONS_RECONCILIATION_INTERVAL_MS,

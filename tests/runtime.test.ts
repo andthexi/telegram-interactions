@@ -11,6 +11,7 @@ import { InteractionStore } from '../src/store.js';
 import { TelegramDelivery } from '../src/telegram.js';
 import type { RenderedMessage, SentMessage, TelegramTransport } from '../src/telegram.js';
 import type { RuntimeBot, RuntimeContext } from '../src/runtime.js';
+import type { ResultReadyInput } from '../src/result-events.js';
 
 const schema = {
   schemaVersion: 1 as const,
@@ -68,16 +69,26 @@ class FakeTransport implements TelegramTransport {
   }
 }
 
+class FakeResultEvents {
+  readonly events: ResultReadyInput[] = [];
+  started = false;
+  async start(): Promise<void> { this.started = true; }
+  async stop(): Promise<void> { this.started = false; }
+  emitResultReady(event: ResultReadyInput): void { this.events.push(event); }
+}
+
 describe('InteractionRuntime', () => {
   let directory: string;
   let store: InteractionStore;
   let bot: FakeBot;
   let runtime: InteractionRuntime;
+  let resultEvents: FakeResultEvents;
 
   beforeEach(async () => {
     directory = await mkdtemp(join(tmpdir(), 'telegram-runtime-'));
     store = new InteractionStore(join(directory, 'interactions.db'));
     bot = new FakeBot();
+    resultEvents = new FakeResultEvents();
     runtime = new InteractionRuntime({
       bot,
       store,
@@ -85,6 +96,8 @@ describe('InteractionRuntime', () => {
       lifecycle: new ResultLifecycle(store),
       delivery: new TelegramDelivery(store, new FakeTransport()),
       socketPath: join(directory, 'runtime.sock'),
+      resultEventsSocketPath: join(directory, 'result-events.sock'),
+      resultEvents,
       deliveryIntervalMs: 60_000,
     });
     await runtime.start();
@@ -129,6 +142,9 @@ describe('InteractionRuntime', () => {
 
     expect(bot.calls.map((call) => call.method)).toEqual(['editMessageReplyMarkup', 'answerCallbackQuery']);
     expect(store.getInteraction(interaction.interactionId).state).toBe('answered');
+    expect(resultEvents.events).toEqual([{
+      namespace: 'jobsearch', workflow: 'alerts', interactionId: interaction.interactionId, revision: 1,
+    }]);
   });
 
   it('maps direct replies to the persisted parent message', async () => {
@@ -147,5 +163,26 @@ describe('InteractionRuntime', () => {
 
     expect(store.getInteraction(interaction.interactionId).state).toBe('answered');
     expect(store.pollResults('jobsearch', 'alerts')[0]?.result).toEqual({ text: 'hello' });
+    expect(resultEvents.events).toEqual([{
+      namespace: 'jobsearch', workflow: 'alerts', interactionId: interaction.interactionId, revision: 1,
+    }]);
+  });
+
+  it('does not let event delivery failure roll back a committed result', async () => {
+    resultEvents.emitResultReady = (): void => { throw new Error('subscriber failed'); };
+    const interaction = store.submit('jobsearch', 'alerts', {
+      idempotencyKey: 'runtime-nonblocking', type: 'notification', schema,
+      destination: { chatId: -100, threadId: 7 }, allowedUserId: 42,
+    });
+    await runtime.deliverPending();
+    const token = store.activeCallbackBindings(interaction.interactionId)[0]?.token;
+    if (token === undefined) throw new Error('fixture callback token was not persisted');
+
+    await bot.emit('callback_query:data', {
+      callbackQuery: { id: 'callback-failure', data: token, message: { chat: { id: -100 }, message_id: 9001, message_thread_id: 7 }, from: { id: 42 } },
+    });
+
+    expect(store.getInteraction(interaction.interactionId).state).toBe('answered');
+    expect(store.pollResults('jobsearch', 'alerts')).toHaveLength(1);
   });
 });

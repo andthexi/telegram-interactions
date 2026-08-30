@@ -22,6 +22,16 @@ One JSON object is read and one JSON object is written per line. The default max
 64 KiB. Invalid JSON, oversized frames, unsupported operations, malformed schemas, stale
 revisions, and illegal transitions return deterministic error objects.
 
+## Result-ready event socket
+
+`TELEGRAM_INTERACTIONS_RESULT_EVENTS_SOCKET` exposes a separate owner-only NDJSON subscription
+socket. A consumer subscribes to one namespace/workflow with
+`{"op":"subscribe","namespace":"jobsearch","workflow":"job-search","eventTypes":["interaction.result_ready"]}`.
+After a result transaction commits, the service attempts a metadata-only event containing event ID,
+timestamp, scope, interaction ID, and revision. Events are best-effort wake hints: they may be lost,
+duplicated, or reordered. Consumers must poll the authoritative result API and acknowledge only after
+their own durable commit. A slow or disconnected subscriber never blocks or rolls back result creation.
+
 ### Submit
 
 ```json

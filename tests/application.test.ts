@@ -42,6 +42,7 @@ async function fixture(): Promise<{ root: string; config: RuntimeConfig }> {
     config: {
       databasePath: join(root, 'interactions.db'),
       socketPath: join(root, 'service.sock'),
+      resultEventsSocketPath: join(root, 'result-events.sock'),
       reconciliationIntervalMs: 300_000,
       deliveryIntervalMs: 60_000,
       token: 'fixture-token',
@@ -64,9 +65,11 @@ describe('standalone interaction application composition', () => {
     await application.runtime.start();
     expect(bot.started).toBe(true);
     expect((await stat(config.socketPath)).mode & 0o777).toBe(0o600);
+    expect((await stat(config.resultEventsSocketPath)).mode & 0o777).toBe(0o600);
     await application.shutdown();
     expect(bot.started).toBe(false);
     await expect(stat(config.socketPath)).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(stat(config.resultEventsSocketPath)).rejects.toMatchObject({ code: 'ENOENT' });
     await expect(stat(join(root, 'interactions.db'))).resolves.toBeTruthy();
   });
 

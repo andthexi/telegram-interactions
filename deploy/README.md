@@ -7,7 +7,8 @@ state.
 ## Runtime contract
 
 - One service process is the sole Telegram poller and sole writer to the service SQLite database.
-- The Unix socket path is supplied by `TELEGRAM_INTERACTIONS_SOCKET_PATH`, and the SQLite database
+- The Unix control socket path is supplied by `TELEGRAM_INTERACTIONS_SOCKET_PATH`, the result-event
+  socket by `TELEGRAM_INTERACTIONS_RESULT_EVENTS_SOCKET`, and the SQLite database
   path by `TELEGRAM_INTERACTIONS_DATABASE_PATH`; the service uses `UMask=0077` and creates the
   socket at mode `0600`.
 - The bot token and runtime settings are read only from the environment by direct `src/main.ts`
