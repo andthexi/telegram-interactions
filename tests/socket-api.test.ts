@@ -66,6 +66,20 @@ describe('Unix socket NDJSON API', () => {
     await rm(directory, { recursive: true, force: true });
   });
 
+  it('removes a stale socket inode before listening', async () => {
+    const { spawn } = await import('node:child_process');
+    const stale = spawn(process.execPath, ['-e', `require('node:net').createServer().listen(${JSON.stringify(socketPath)},()=>process.stdout.write('ready\\n'))`], { stdio: ['ignore', 'pipe', 'inherit'] });
+    await new Promise<void>((resolve, reject) => {
+      stale.once('error', reject);
+      stale.stdout.once('data', () => resolve());
+    });
+    stale.kill('SIGKILL');
+    await new Promise<void>((resolve) => stale.once('exit', () => resolve()));
+
+    await server.start();
+    await expect(roundTrip(socketPath, Buffer.from(JSON.stringify(submitMessage('recovered'))))).resolves.toMatchObject({ ok: true });
+  });
+
   it('submits idempotently over an owner-only socket and removes the socket on stop', async () => {
     await server.start();
     const payload = Buffer.from(JSON.stringify(submitMessage()));

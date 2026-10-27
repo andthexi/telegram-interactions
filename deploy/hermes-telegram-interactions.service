@@ -1,12 +1,11 @@
 [Unit]
 Description=Shared Hermes Telegram Interaction Service
-After=default.target
 
 [Service]
 Type=simple
 WorkingDirectory=%h/telegram-interactions
 EnvironmentFile=-%h/telegram-interactions/.env
-ExecStart=node --env-file-if-exists=.env node_modules/tsx/dist/cli.mjs src/main.ts
+ExecStart=/home/hermes/.asdf/installs/nodejs/26.7.0/bin/node --env-file-if-exists=.env node_modules/tsx/dist/cli.mjs src/main.ts
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=30

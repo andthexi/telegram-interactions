@@ -50,6 +50,22 @@ describe('result-ready event socket', () => {
     await rm(directory, { recursive: true, force: true });
   });
 
+  it('removes a stale socket inode before listening', async () => {
+    await server.stop();
+    const { spawn } = await import('node:child_process');
+    const stale = spawn(process.execPath, ['-e', `require('node:net').createServer().listen(${JSON.stringify(path)},()=>process.stdout.write('ready\\n'))`], { stdio: ['ignore', 'pipe', 'inherit'] });
+    await new Promise<void>((resolve, reject) => {
+      stale.once('error', reject);
+      stale.stdout.once('data', () => resolve());
+    });
+    stale.kill('SIGKILL');
+    await new Promise<void>((resolve) => stale.once('exit', () => resolve()));
+
+    await server.start();
+    const socket = await connect(path);
+    sockets.push(socket);
+  });
+
   it('subscribes one owner to a scope and emits metadata-only result-ready events', async () => {
     const socket = await connect(path);
     sockets.push(socket);

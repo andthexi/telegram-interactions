@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { chmod, mkdir, rm, stat } from 'node:fs/promises';
+import { chmod, mkdir, rm } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import type { Server, Socket } from 'node:net';
 import { dirname } from 'node:path';
+import { removeStaleSocket } from './stale-socket.js';
 
 const scopePattern = /^[a-z0-9][a-z0-9._-]{0,63}$/;
 const eventType = 'interaction.result_ready' as const;
@@ -41,12 +42,7 @@ export class ResultEventServer {
   async start(): Promise<void> {
     if (this.server !== null) throw new Error('result event server is already started');
     await mkdir(dirname(this.path), { recursive: true, mode: 0o700 });
-    try {
-      await stat(this.path);
-      throw new Error(`socket path already exists: ${this.path}`);
-    } catch (error) {
-      if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error;
-    }
+    await removeStaleSocket(this.path);
     this.server = createServer((socket) => this.accept(socket));
     await new Promise<void>((resolve, reject) => {
       const server = this.server;
